@@ -1,0 +1,8 @@
+#+title: GeoGebra web Examples
+
+Examples of web apps using GeoGebra.
+
+* References
+- [[https://wiki.geogebra.org/en/Reference:JavaScript][Reference:JavaScript - GeoGebra マニュアル]]
+- [[https://wiki.geogebra.org/en/Reference:Math_Apps_Embedding][Reference:Math Apps Embedding - GeoGebra マニュアル]]
+- [[http://brahman.ism.ac.jp/GeoGebra/][動的幾何学ソフトウェアGeoGebraの整備と普及]] <2017-11-13 Mon>
