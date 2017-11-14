@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Earth</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+
+    <body>
+        <header>
+            <h1>Earth and Mercator</h1>
+        </header>
+        <div id="main-container">
+            <main>
+                <script type="text/javascript" src="https://cdn.geogebra.org/apps/deployggb.js"></script>
+                <div>Move the value <code>r</code></div>
+                <div id="applet_container"></div>
+
+                <form>
+                    <input type="button" value="Reset" onclick="ggbApplet.reset();">
+                </form>
+
+                <script>
+                 var parameters = {
+                     "id": "ggbApplet",
+                     "width": 1200,
+                     "height": 1000,
+                     "prerelease":false,
+                     "showToolBar":true,
+                     "borderColor":null,
+                     "showMenuBar":false,
+                     "showAlgebraInput":false,
+                     "showResetIcon":true,
+                     "enableLabelDrags":false,
+                     "enableShiftDragZoom":true,
+                     "enableRightClick":false,
+                     "capturingThreshold":null,
+                     "showToolBarHelp":true,
+                     "errorDialogsActive":true,
+                     "useBrowserForJS":false,
+                     "material_id": "zxXCfugu",
+                 };
+                 var applet = new GGBApplet(parameters, '5.0');
+                 window.onload = function() { applet.inject('applet_container'); }
+
+                 var data;
+                 
+                 function clearListener() {
+	                 document.listenerForm.textarea1.value = "";
+	                 document.listenerForm.textarea2.value = "";
+                 }
+
+                 function loadMap() {
+                     var xhr = new XMLHttpRequest();
+                     xhr.open("GET", "https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_land.geojson", true);
+                     xhr.responseType = 'json';
+                     xhr.onreadystatechange = function() {
+                         if (xhr.readyState === 4 && (xhr.status === 200 || xhr.status === 304)) {
+                             var applet = document.ggbApplet;
+                             data = xhr.response;
+                             var arr = data.features;
+                             for (var i = 0; i < arr.length; i=i+1) {
+                                 var type = arr[i].geometry.type;
+                                 if (type === "Polygon" ) {
+                                     arr[i].geometry.coordinates.forEach(
+                                         (coords, index) => {
+                                             if (coords.length < 10) {
+                                                 return;
+                                             }
+                                             var x1, y1, x2, y2;
+                                             x2 = coords[coords.length-1][0];
+                                             y2 = coords[coords.length-1][1];
+                                             var s = "";
+                                             var endPoint = "";
+                                             for (var j = 0; j < coords.length; j=j+3) {
+                                                 x1 = coords[j][0]*Math.PI/180.0;
+                                                 y1 = coords[j][1]*Math.PI/180.0;
+                                                 var xs = (Math.cos(x1)*Math.cos(y1)).toFixed(20),
+                                                     ys = (Math.sin(x1)*Math.cos(y1)).toFixed(20),
+                                                     zs = (Math.sin(y1)).toFixed(20);
+                                                 var p = `(${xs},${ys},${zs})`;
+                                                 s += p + ",";
+                                                 if (j == 0) { endPoint = p; }
+                                                 x2 = x1;
+                                                 y2 = y1;
+                                             }
+                                             applet.evalCommand(`PL_${i}0${index} = Polyline(${s}${endPoint})`);
+                                             applet.setLineThickness(`PL_${i}0${index}`, 1);
+                                         });
+                                 }
+                             }
+                         }
+                     }
+                     xhr.send(null);
+                 }
+
+                 putGreatCircle = () => {
+                     var applet = document.ggbApplet;
+                     applet.evalCommand("B = (1,1,1)");
+                     applet.evalCommand("C = (-1,1,1)");
+                     applet.evalCommand("plane1 = Plane(A, B, C)");
+                 }
+                 
+                </script>
+                <form>
+                    <input type="button" value="Load map" onclick="loadMap();">
+                    <input type="button" value="Put great circle" onclick="putGreatCircle();">
+                </form>
+                <div>間違ってメルカトル図法で同心円を描いてしまったら実際はどうなるのか。</div>
+            </main>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Orientation</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+
+    <body>
+        <header>
+            <span>Orientation</span>
+        </header>
+        <div id="main-container">
+            <main>
+                <script type="text/javascript" src="https://cdn.geogebra.org/apps/deployggb.js"></script>
+                <div id="applet_container"></div>
+
+                <form>
+                    <input type="button" value="Reset" onclick="ggbApplet.reset();">
+                </form>
+
+                <script>
+                 var parameters = {
+                     "id": "ggbApplet",
+                     "width": 600,
+                     "height": 800,
+                     "prerelease": false,
+                     "showToolBar": false,
+                     "borderColor": null,
+                     "showMenuBar": false,
+                     "showAlgebraInput": false,
+                     "showResetIcon": true,
+                     "enableLabelDrags": false,
+                     "enableShiftDragZoom": true,
+                     "enableRightClick": false,
+                     "capturingThreshold": null,
+                     "showToolBarHelp": true,
+                     "errorDialogsActive": true,
+                     "useBrowserForJS": false,
+                     "material_id": "fmeavhu9",
+                 };
+                 var applet = new GGBApplet(parameters, '5.0');
+
+                 window.onload = () => {
+                     applet.inject('applet_container');
+
+                     window.addEventListener('deviceorientation', (event) => {
+                         var applet = document.ggbApplet;
+                         const ra = -event.alpha * Math.PI / 180.0;
+                         const rb = 180.0+event.beta * Math.PI / 180.0;
+                         applet.evalCommand(`SetViewDirection(Vector((cos(${ra})*cos(${rb}), sin(${ra})*cos(${rb}), sin(${rb}))), false)`);
+                     });
+                 }
+                </script>
+            </main>
+        </div>
+    </body>
+
+</html>

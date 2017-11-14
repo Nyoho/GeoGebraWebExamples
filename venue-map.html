@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Venue map</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+
+    <body>
+        <header>
+            <h1>Venue map</h1>
+        </header>
+        <div id="main-container">
+            <main>
+                <script type="text/javascript" src="https://cdn.geogebra.org/apps/deployggb.js"></script>
+                <div id="applet_container"></div>
+
+                <script>
+                 var parameters = {
+                     "id": "ggbApplet",
+                     "width":800,
+                     "height":480,
+                     "prerelease":false,
+                     "showToolBar":true,
+                     "borderColor":null,
+                     "showMenuBar":false,
+                     "showAlgebraInput":false,
+                     "showResetIcon":true,
+                     "enableLabelDrags":false,
+                     "enableShiftDragZoom":true,
+                     "enableRightClick":false,
+                     "capturingThreshold":null,
+                     "showToolBarHelp":true,
+                     "errorDialogsActive":true,
+                     "useBrowserForJS": true,
+                     "material_id": "GKn8W2Y8",
+                 };
+                 var applet = new GGBApplet(parameters, '5.0');
+                 window.onload = function() { applet.inject('applet_container'); }
+
+                 var data;
+                 var points = new Set();
+                 
+                 function clearListener() {
+	                 document.listenerForm.textarea1.value = "";
+                 }
+
+                 clearPoints = () => {
+                     var applet = document.ggbApplet;
+                     for (let p of points) {
+                         applet.deleteObject(p);
+                     }
+                     points = new Set();
+                 }
+                 
+                 function center() {
+                     var applet = document.ggbApplet;
+
+                     /* Corner[1] left-bottom
+                      * Corner[2] right-bottom
+                      * Corner[3] right-top
+                      * Corner[4] left-top*/
+
+                     applet.evalCommand("Cent=(Corner[1]+Corner[3])/2");
+                     var x = applet.getXcoord("Cent"), 
+                         y = applet.getYcoord("Cent"); 
+                     applet.deleteObject("Cent"); 
+                     return {x: x, y: y};
+                 }
+                 
+                 function boundingBox() {
+                     var applet = document.ggbApplet;
+                     applet.evalCommand("Cent=Corner[1]");
+                     var left   = applet.getXcoord("Cent"), 
+                         bottom = applet.getYcoord("Cent"); 
+                     applet.deleteObject("Cent"); 
+                     applet.evalCommand("Cent=Corner[3]");
+                     var right = applet.getXcoord("Cent"), 
+                         top   = applet.getYcoord("Cent"); 
+                     applet.deleteObject("Cent"); 
+	                 return {l: left, b: bottom, r: right, t: top};
+                 }
+                 
+                 function loadInfo() {
+                     const bb = boundingBox();
+                     const xhr = new XMLHttpRequest();
+                     const venue = document.myForm.venue.value;
+                     const url = `http://overpass-api.de/api/interpreter?data=[out:json][timeout:25];(node[\"shop\"=\"${venue}\"](${bb.b},${bb.l},${bb.t},${bb.r});<;);out body;`;
+
+                     xhr.open("GET", url, true);
+                     xhr.responseType = 'json';
+                     xhr.addEventListener('progress', (event) => {
+                         document.getElementById('message').innerText = `${event.loaded} / ${event.total}`
+                     });
+                     xhr.onreadystatechange = function() {
+                         if (xhr.readyState === 4 && (xhr.status === 200 || xhr.status === 304)) {
+                             var applet = document.ggbApplet;
+                             const labelVisible = document.myForm.labelVisibilityCheckbox.checked;
+                             data = xhr.response;
+                             var arr = data.elements;
+                             for (var i = 0; i < arr.length; i++) {
+                                 var obj = arr[i];
+                                 if (!'tags' in obj) { continue; }
+                                 if (!'shop' in obj.tags) { continue; }
+                                 if (obj.tags.shop == venue) {
+                                     var lon = obj.lon,
+                                         lat = obj.lat,
+                                         id = obj.id;
+                                     const caption = captionOf(obj);
+                                     
+                                     //console.log(`P${id} = (${lon},${lat})`);
+                                     applet.evalCommand(`P${id} = (${lon},${lat})`);
+                                     applet.setCaption(`P${id}`, caption);
+                                     applet.setLabelVisible(`P${id}`, labelVisible);
+                                     applet.setLabelStyle(`P${id}`, 3); // CAPTION
+                                     points.add(`P${id}`);
+                                 }
+                             }
+                         }
+                     }
+                     xhr.send();
+                 }
+
+                 drawVoronoi = (element) => {
+                     var applet = document.ggbApplet;
+                     if (element.checked) {
+                         if (points.size >= 2) {
+                             applet.evalCommand("vd = Voronoi(" + Array.from(points).join(',') + ")");
+                         }
+                     } else {
+                         applet.deleteObject('vd');
+                     }
+                 }
+
+                 showLabels = (element) => {
+                     var applet = document.ggbApplet;
+                     for (p of points) {
+                         applet.setLabelVisible(p, element.checked);
+                     }
+                 }
+                 
+                 captionOf = (obj) => {
+                     if (!'tags' in obj) { return ''; }
+                     if ('name' in obj.tags) { return obj.tags['name']; }
+                     if ('name:ja' in obj.tags) { return obj.tags['name:ja']; }
+                     if ('name:en' in obj.tags) { return obj.tags['name:en']; }
+                     return '';
+                 }
+                 
+                 function loadMap() {
+                     var xhr = new XMLHttpRequest();
+                     const zoom = document.myForm.zoom.value;
+                     const cent = center();
+                     const url = `http://nominatim.openstreetmap.org/reverse?format=json&polygon_geojson=1&lat=${cent.y}&lon=${cent.x}&zoom=${zoom}&addressdetails=1`;
+                     console.log(url);
+                     xhr.open("GET", url, true);
+                     xhr.responseType = 'json';
+                     xhr.addEventListener('progress', (event) => {
+                         document.getElementById('message').innerText = `${event.loaded} / ${event.total}`
+                     });
+                     xhr.onreadystatechange = function() {
+                         if (xhr.readyState === 4 && (xhr.status === 200 || xhr.status === 304)) {
+                             var applet = document.ggbApplet;
+                             data = xhr.response;
+                             if ('error' in data) {
+                                 document.getElementById('message').innerText = data.error;
+                                 return;
+                             }
+                             if ('display_name' in data) {
+                                 document.getElementById('message').innerText = data.display_name;
+                             }
+                             const arr = data.geojson.coordinates;
+                             const type = data.geojson.type;
+                             const pid = data.place_id;
+                             if (type === "Polygon") {
+                                 for (var i = 0; i < arr.length; i=i+1) {
+                                     const coords = arr[i];
+                                     var x1, y1;
+                                     var s = "";
+                                     var endPoint = ""; 
+                                     for (var j = 0; j < coords.length; j=j+4) {
+                                         x1 = coords[j][0];
+                                         y1 = coords[j][1];
+                                         var p = `(${x1},${y1})`;
+                                         s += p + ",";
+                                         if (j == 0) { endPoint = p; }
+                                     }
+                                     applet.evalCommand(`PL${i}o${pid} = Polyline(${s}${endPoint})`);
+                                     applet.setLineThickness(`PL${i}o${pid}`, 1);
+                                 }
+                             } else if (type === "MultiPolygon") {
+                                 for (var i = 0; i < arr.length; i=i+1) {
+                                     arr[i].forEach(
+                                         (coords, index) => {
+                                             var x1, y1;
+                                             var s = "";
+                                             var endPoint = ""; 
+                                             for (var j = 0; j < coords.length; j=j+4) {
+                                                 x1 = coords[j][0];
+                                                 y1 = coords[j][1];
+                                                 var p = `(${x1},${y1})`;
+                                                 s += p + ",";
+                                                 if (j == 0) { endPoint = p; }
+                                             }
+                                             applet.evalCommand(`PL${i}o${pid} = Polyline(${s}${endPoint})`);
+                                             applet.setLineThickness(`PL${i}o${pid}`, 1);
+                                         }
+                                     );
+                                 }
+                             } else if (type === "LineString") {
+                                 const coords = arr;
+                                 var x1, y1;
+                                 var s = "";
+                                 var endPoint = ""; 
+                                 for (var j = 0; j < coords.length; j=j+1) {
+                                     x1 = coords[j][0];
+                                     y1 = coords[j][1];
+                                     var p = `(${x1},${y1})`;
+                                     s += p + ",";
+                                     if (j == 0) { endPoint = p; }
+                                 }
+                                 applet.evalCommand(`PL${i}o${pid} = Polyline(${s}${endPoint})`);
+                                 applet.setLineThickness(`PL${i}o${pid}`, 1);
+                                 
+                             }
+                         }
+                     }
+                     xhr.send();
+                 }
+
+                </script>
+
+                <form name="myForm">
+                    <input type="button" value="Reset" onclick="ggbApplet.reset();">
+                    <input type="button" value="Remove all" onclick="clearPoints();">
+                    <input type="button" value="Load near info" onclick="loadInfo();">
+                    <input type="text" name="venue" value="convenience">
+                    <input type="button" value="Load map" onclick="loadMap();">
+                    Zoom: <select name="zoom">
+                        <option value="0">0 (国)</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5" selected>5 (都道府県)</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8 (市町村)</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                        <option value="13">13</option>
+                        <option value="14">14</option>
+                        <option value="15">15</option>
+                        <option value="16">16</option>
+                        <option value="17">17</option>
+                        <option value="18">18 (建物)</option>
+                    </select>
+                    <span id="message"></span>
+                    <div>
+                        <input type="checkbox" value="Draw Voronoi diag" onclick="drawVoronoi(this);"> Draw Voronoi diag.
+                        <input type="checkbox" name="labelVisibilityCheckbox" value="Show labels" onchange="showLabels(this);"> Show labels
+                    </div>
+                </form>
+                
+        </main>
+        </div>
+    </body>
+
+</html>
